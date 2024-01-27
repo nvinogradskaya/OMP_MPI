@@ -1,0 +1,142 @@
+{\rtf1\ansi\ansicpg1251\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Bold;\f1\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red46\green174\blue187;\red159\green160\blue28;\red0\green0\blue0;
+\red47\green180\blue29;\red200\green20\blue201;}
+{\*\expandedcolortbl;;\cssrgb\c20196\c73240\c78250;\cssrgb\c68468\c68012\c14208;\csgray\c0;
+\cssrgb\c20238\c73898\c14947;\cssrgb\c83396\c23075\c82664;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\b\fs22 \cf2 \CocoaLigature0 #include\cf3  <iostream>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <vector>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <climits>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <omp.h>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <chrono>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <random>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <fstream>
+\f1\b0 \cf4 \
+\
+\cf5 using\cf4  \cf5 namespace\cf4  std;\
+\
+\cf5 class\cf4  BandedMatrix \{\
+\cf5 public\cf4 :\
+    BandedMatrix(\cf5 int\cf4  size, \cf5 int\cf4  bandwidth) : size(size), bandwidth(bandwidth) \{\
+        matrix.resize(size, vector<\cf5 double\cf4 >(size, 0.0));\
+        generateBandedMatrix();\
+    \}\
+\
+    \cf5 double\cf4 & 
+\f0\b \cf3 operator
+\f1\b0 \cf4 ()(\cf5 int\cf4  i, \cf5 int\cf4  j) \{\
+        \cf6 return\cf4  matrix[i][j];\
+    \}\
+\
+    \cf5 double\cf4  
+\f0\b \cf3 operator
+\f1\b0 \cf4 ()(\cf5 int\cf4  i, \cf5 int\cf4  j) \cf5 const\cf4  \{\
+        \cf6 return\cf4  matrix[i][j];\
+    \}\
+\
+    \cf5 int\cf4  getSize() \cf5 const\cf4  \{\
+        \cf6 return\cf4  size;\
+    \}\
+\
+\cf5 private\cf4 :\
+    \cf5 void\cf4  generateBandedMatrix() \{\
+        random_device rd;\
+        mt19937 gen(rd());\
+        uniform_real_distribution<\cf5 double\cf4 > dis(0.0, 1.0);\
+\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = 0; i < size; ++i) \{\
+            
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  j = max(0, i - bandwidth); j < min(size, i + bandwidth + 1); ++j) \{\
+                matrix[i][j] = dis(gen);\
+            \}\
+        \}\
+    \}\
+\
+\cf5 private\cf4 :\
+    \cf5 int\cf4  size;\
+    \cf5 int\cf4  bandwidth;\
+    vector<vector<\cf5 double\cf4 >> matrix;\
+\};\
+\
+\cf5 double\cf4  find_max(\cf5 const\cf4  BandedMatrix& mat) \{\
+    \cf5 double\cf4  max_of_min = numeric_limits<\cf5 double\cf4 >::lowest();\
+\
+
+\f0\b \cf2     #pragma omp parallel for reduction(max: max_of_min) schedule(dynamic)
+\f1\b0 \cf4 \
+    
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = 0; i < mat.getSize(); ++i) \{\
+        \cf5 double\cf4  min_val = mat(i, 0);\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  j = 1; j < mat.getSize(); ++j) \{\
+            
+\f0\b \cf3 if
+\f1\b0 \cf4  (mat(i, j) < min_val) \{\
+                min_val = mat(i, j);\
+            \}\
+        \}\
+        
+\f0\b \cf3 if
+\f1\b0 \cf4  (min_val > max_of_min) \{\
+            max_of_min = min_val;\
+        \}\
+    \}\
+\
+    \cf6 return\cf4  max_of_min;\
+\}\
+\
+\cf5 int\cf4  main() \{\
+    ofstream result_file;\
+    result_file.open(
+\f0\b \cf3 "5_2.csv"
+\f1\b0 \cf4 );\
+\
+    
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  size = 10; size <= 10000; size *= 10) \{\
+        \cf5 int\cf4  bandwidth = size / 2;\
+\
+        BandedMatrix matrix(size, bandwidth);\
+\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  j = 1; j <= 16; j += 1) \{\
+            omp_set_num_threads(j);\
+            \cf5 auto\cf4  start_time = chrono::high_resolution_clock::now();\
+            \cf5 double\cf4  result = find_max(matrix);\
+            \cf5 auto\cf4  end_time = chrono::high_resolution_clock::now();\
+            \cf5 auto\cf4  duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);\
+\
+            result_file << duration.count() << 
+\f0\b \cf6 ','
+\f1\b0 \cf4 ;\
+        \}\
+        result_file << 
+\f0\b \cf6 '\\n'
+\f1\b0 \cf4 ;\
+    \}\
+\
+    result_file.close();\
+    \cf6 return\cf4  0;\
+\}\
+}

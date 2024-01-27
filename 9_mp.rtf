@@ -1,0 +1,121 @@
+{\rtf1\ansi\ansicpg1251\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Bold;\f1\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red46\green174\blue187;\red159\green160\blue28;\red0\green0\blue0;
+\red47\green180\blue29;\red200\green20\blue201;}
+{\*\expandedcolortbl;;\cssrgb\c20196\c73240\c78250;\cssrgb\c68468\c68012\c14208;\csgray\c0;
+\cssrgb\c20238\c73898\c14947;\cssrgb\c83396\c23075\c82664;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\b\fs22 \cf2 \CocoaLigature0 #include\cf3  <iostream>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <vector>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <omp.h>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <chrono>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <random>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <fstream>
+\f1\b0 \cf4 \
+\
+\cf5 using\cf4  \cf5 namespace\cf4  std;\
+\
+\cf5 double\cf4  get_min(\cf5 const\cf4  vector<\cf5 double\cf4 >& a) \{\
+    \cf5 double\cf4  min_ = a[0];\
+\
+
+\f0\b \cf2     #pragma omp parallel for reduction(min: min_)
+\f1\b0 \cf4 \
+    
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = 1; i < a.size(); ++i) \{\
+        
+\f0\b \cf3 if
+\f1\b0 \cf4  (a[i] < min_) \{\
+            min_ = a[i];\
+        \}\
+    \}\
+\
+    \cf6 return\cf4  min_;\
+\}\
+\
+\cf5 int\cf4  main() \{\
+    random_device rd;\
+    mt19937 gen(rd());\
+    uniform_real_distribution<\cf5 double\cf4 > dis(0.0, 1.0);\
+\
+    ofstream f1, f2;\
+    f1.open(
+\f0\b \cf3 "9_1.csv"
+\f1\b0 \cf4 );\
+    f2.open(
+\f0\b \cf3 "9_2.csv"
+\f1\b0 \cf4 );\
+\
+    
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  s = 10; s <= 10000000; s *= 10) \{\
+        vector<\cf5 double\cf4 > v(s);\
+\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  k = 0; k < s; ++k) \{\
+            v[k] = dis(gen);\
+        \}\
+\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  j = 1; j <= 16; j += 1) \{\
+            omp_set_num_threads(j);\
+\
+            \cf5 auto\cf4  start_nested = chrono::high_resolution_clock::now();\
+
+\f0\b \cf2             #pragma omp parallel for
+\f1\b0 \cf4 \
+            
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = 0; i < j; ++i) \{\
+                \cf5 double\cf4  r = get_min(v);\
+                r += 1.0;\
+            \}\
+            \cf5 auto\cf4  end_nested = chrono::high_resolution_clock::now();\
+            \cf5 auto\cf4  dur_nested = chrono::duration_cast<chrono::microseconds>(end_nested - start_nested);\
+            \cf5 auto\cf4  start_without = chrono::high_resolution_clock::now();\
+            
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = 0; i < j; ++i) \{\
+                \cf5 double\cf4  r = get_min(v);\
+                r += 1.0;\
+            \}\
+            \cf5 auto\cf4  end_without = chrono::high_resolution_clock::now();\
+            \cf5 auto\cf4  dur_without = chrono::duration_cast<chrono::microseconds>(end_without - start_without);\
+\
+            f1 << dur_nested.count() << 
+\f0\b \cf6 ','
+\f1\b0 \cf4 ;\
+            f2 << dur_without.count() << 
+\f0\b \cf6 ','
+\f1\b0 \cf4 ;\
+        \}\
+\
+        f1 << 
+\f0\b \cf6 '\\n'
+\f1\b0 \cf4 ;\
+        f2 << 
+\f0\b \cf6 '\\n'
+\f1\b0 \cf4 ;\
+    \}\
+\
+    f1.close();\
+    f2.close();\
+\
+    \cf6 return\cf4  0;\
+\}\
+}
