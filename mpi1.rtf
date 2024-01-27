@@ -1,0 +1,114 @@
+{\rtf1\ansi\ansicpg1251\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Bold;\f1\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red46\green174\blue187;\red159\green160\blue28;\red0\green0\blue0;
+\red47\green180\blue29;\red180\green36\blue25;\red200\green20\blue201;}
+{\*\expandedcolortbl;;\cssrgb\c20196\c73240\c78250;\cssrgb\c68468\c68012\c14208;\csgray\c0;
+\cssrgb\c20238\c73898\c14947;\cssrgb\c76409\c21698\c12524;\cssrgb\c83396\c23075\c82664;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh9480\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\b\fs22 \cf2 \CocoaLigature0 #include\cf3  <iostream>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <vector>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <mpi.h>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <chrono>
+\f1\b0 \cf4 \
+
+\f0\b \cf2 #include\cf3  <random>
+\f1\b0 \cf4 \
+\
+\cf5 using\cf4  \cf5 namespace\cf4  std;\
+\
+random_device rd;\
+mt19937 gen(rd());\
+uniform_int_distribution<\cf5 int\cf4 > dist(1, 65536);\
+\
+\
+\cf5 int\cf4  main(\cf5 int\cf4  argc, \cf5 char\cf4 * argv[]) \{\
+    MPI_Init(&argc, &argv);\
+\
+    \cf5 int\cf4  rank, size;\
+    MPI_Comm_rank(
+\f0\b \cf6 MPI_COMM_WORLD
+\f1\b0 \cf4 , &rank);\
+    MPI_Comm_size(
+\f0\b \cf6 MPI_COMM_WORLD
+\f1\b0 \cf4 , &size);\
+\
+    
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  n = 1000; n <= 10000000; n *= 10) \{\
+        vector<\cf5 int\cf4 > vec;\
+\
+        chrono::time_point<chrono::system_clock, chrono::nanoseconds> start_time;\
+        
+\f0\b \cf3 if
+\f1\b0 \cf4  (rank == 0) \{\
+            
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 auto\cf4  i = 0; i < n; i++) \{\
+                vec.push_back(dist(gen));\
+            \}\
+            start_time = chrono::high_resolution_clock::now();\
+        \}\
+\
+        \cf5 int\cf4  local_size = n / size;\
+        vector<\cf5 int\cf4 > local_vec(local_size);\
+\
+        MPI_Scatter(vec.data(), local_size, 
+\f0\b \cf6 MPI_INT
+\f1\b0 \cf4 , local_vec.data(), local_size, 
+\f0\b \cf6 MPI_INT
+\f1\b0 \cf4 , 0, 
+\f0\b \cf6 MPI_COMM_WORLD
+\f1\b0 \cf4 );\
+\
+        \cf5 int\cf4  local_min = 65537;\
+        
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 auto\cf4  i: local_vec) \{\
+            
+\f0\b \cf3 if
+\f1\b0 \cf4  (i < local_min) \{\
+                local_min = i;\
+            \}\
+        \}\
+\
+        \cf5 int\cf4  global_min;\
+        MPI_Reduce(&local_min, &global_min, 1, 
+\f0\b \cf6 MPI_INT
+\f1\b0 \cf4 , 
+\f0\b \cf6 MPI_MIN
+\f1\b0 \cf4 , 0, 
+\f0\b \cf6 MPI_COMM_WORLD
+\f1\b0 \cf4 );\
+\
+        
+\f0\b \cf3 if
+\f1\b0 \cf4  (rank == 0) \{\
+            
+\f0\b \cf3 if
+\f1\b0 \cf4  (n % size != 0) \{\
+                
+\f0\b \cf3 for
+\f1\b0 \cf4  (\cf5 int\cf4  i = size * local_size; i < n; i++) \{\
+                        global_min = vec[i];\
+                    \}\
+                \}\
+            \}\
+            \cf5 auto\cf4  end_time = chrono::high_resolution_clock::now();\
+            \cf5 auto\cf4  duration = chrono::duration_cast<chrono::microseconds>(end_time - start_time);\
+            cout << duration.count() << 
+\f0\b \cf3 ","
+\f1\b0 \cf4 ;\
+        \}\
+    \}\
+    MPI_Finalize();\
+    \cf7 return\cf4  0;\
+\}\
+}
